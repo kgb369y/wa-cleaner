@@ -1,0 +1,30 @@
+{
+  "name": "wa-cleaner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fase 1: rescata mensajes/archivos importantes de WhatsApp hacia Telegram (sin borrar nada).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "chatid": "NODE_NO_WARNINGS=1 tsx src/chatid.ts",
+    "check": "NODE_NO_WARNINGS=1 tsx src/check.ts",
+    "community-inventory": "NODE_NO_WARNINGS=1 tsx src/community-inventory.ts",
+    "list": "NODE_NO_WARNINGS=1 tsx src/list.ts",
+    "start": "NODE_NO_WARNINGS=1 tsx src/index.ts",
+    "summary": "NODE_NO_WARNINGS=1 tsx src/summary.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "baileys": "7.0.0-rc14",
+    "pino": "10.4.0",
+    "qrcode-terminal": "0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/qrcode-terminal": "^0.12.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

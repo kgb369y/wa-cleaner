@@ -1,0 +1,52 @@
+{
+  "_ayuda": "Las claves que empiezan con _ son comentarios y se ignoran. Las palabras clave no distinguen mayúsculas ni tildes (menú = menu) y coinciden al inicio de palabra (vuelo también encuentra vuelos).",
+
+  "rescue": {
+    "keywords": [
+      "receta",
+      "menu",
+      "factura",
+      "garantia",
+      "vuelo",
+      "tiquete",
+      "boleto",
+      "pasaje",
+      "reserva",
+      "itinerario",
+      "comprobante",
+      "recibo",
+      "contrato",
+      "poliza",
+      "cotizacion",
+      "certificado"
+    ],
+
+    "_documentos": "Reenvía todo documento adjunto cuya extensión esté en esta lista.",
+    "forwardAllDocuments": true,
+    "documentExtensions": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "txt", "odt", "ods"],
+
+    "_mensajesGuardados": "Tu chat contigo misma. forwardLinks: reenvía mensajes con enlaces. forwardMedia: reenvía fotos/archivos/audios. forwardAllText: reenvía también notas de texto sin enlace.",
+    "savedMessages": {
+      "forwardLinks": true,
+      "forwardMedia": true,
+      "forwardAllText": false
+    },
+
+    "_ignoreChats": "Chats de los que NO se rescata nada (ruido). Cada texto se compara contra el JID o el nombre del chat. Ejemplo: [\"Promos Tienda\", \"1203630xxxx@g.us\"]",
+    "ignoreChats": [],
+
+    "_maxFileSizeMB": "Los bots de Telegram aceptan hasta 50 MB por archivo; se deja margen.",
+    "maxFileSizeMB": 45
+  },
+
+  "_protectedChats": "Chats/grupos VIP que NUNCA se tocarán en la limpieza (Fase 3). Aún no se usa, pero ve armando la lista. Ejemplo: [\"Mamá\", \"Familia\"]",
+  "protectedChats": [],
+
+  "limits": {
+    "_ayuda": "Pausa aleatoria entre reenvíos (segundos), tope de reenvíos por 24 h y reintentos por mensaje.",
+    "maxForwardsPerDay": 300,
+    "minDelaySec": 3,
+    "maxDelaySec": 9,
+    "maxAttempts": 3
+  }
+}
