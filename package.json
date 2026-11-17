@@ -14,6 +14,9 @@
     "list": "NODE_NO_WARNINGS=1 tsx src/list.ts",
     "start": "NODE_NO_WARNINGS=1 tsx src/index.ts",
     "summary": "NODE_NO_WARNINGS=1 tsx src/summary.ts",
+    "test-clear-starred": "NODE_NO_WARNINGS=1 tsx src/test-clear-starred.ts",
+    "test-delete-whatsapp": "NODE_NO_WARNINGS=1 tsx src/test-delete-whatsapp.ts",
+    "test-send-whatsapp": "NODE_NO_WARNINGS=1 tsx src/test-send-whatsapp.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

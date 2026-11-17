@@ -24,6 +24,7 @@ async function main() {
   let openedAt = 0;
   let lastHistoryAt = 0;
   let historyEvents = 0;
+  let chatsReceived = 0;
   let fatalReason: string | undefined;
 
   console.log('\nInventario de comunidades de WhatsApp (solo lectura)');
@@ -54,6 +55,7 @@ async function main() {
         fatalReason = reason;
       },
       onChats: (items) => {
+        chatsReceived += items.length;
         for (const item of items) {
           if (typeof item?.id !== 'string') continue;
           const name = item.name ?? item.displayName ?? item.subject;
@@ -96,14 +98,39 @@ async function main() {
       await sleep(1000);
     }
 
-    const candidates = [...chats.values()].filter((chat) => {
-      const normalized = normalizeText(chat.name);
-      return COMMUNITY_NAMES.some((name) => normalized.includes(normalizeText(name)));
-    });
+    const participatingGroups = await wa.fetchParticipatingGroups();
+    const participatingGroupIds = new Set(participatingGroups.map((group) => group.id));
+    const candidates = new Map<string, ChatRecord>();
 
-    if (!candidates.length) {
-      console.log('No encontré comunidades con esos nombres entre los chats recibidos por WhatsApp.');
-      console.log('Comprueba que la cuenta vinculada tenga acceso y que Baileys haya recibido la lista de chats.');
+    for (const chat of chats.values()) {
+      if (participatingGroupIds.has(chat.id) &&
+          COMMUNITY_NAMES.some((name) => normalizeText(chat.name).includes(normalizeText(name)))) {
+        candidates.set(chat.id, chat);
+      }
+    }
+    for (const group of participatingGroups) {
+      if ((group.isCommunity || group.isCommunityAnnounce) && group.subject &&
+          COMMUNITY_NAMES.some((name) => normalizeText(group.subject).includes(normalizeText(name)))) {
+        candidates.set(group.id, { id: group.id, name: group.subject });
+      }
+    }
+
+    if (candidates.size === 0) {
+      console.log('No encontré esas comunidades en los eventos de chats ni en los grupos participantes devueltos por WhatsApp.');
+      console.log(`Eventos de chats recibidos: ${chatsReceived}; grupos participantes consultados: ${participatingGroups.length}.`);
+      const diagnosticGroups = participatingGroups.filter((group) =>
+        group.isCommunity || group.isCommunityAnnounce || normalizeText(group.subject ?? '').includes('tesla'),
+      );
+      if (diagnosticGroups.length) {
+        console.log('Comunidades y grupos con “Tesla” que sí devolvió WhatsApp:');
+        console.table(diagnosticGroups.map((group) => ({
+          Tipo: group.isCommunity ? 'Comunidad' : group.isCommunityAnnounce ? 'Anuncios' : 'Grupo',
+          Nombre: group.subject || '(sin nombre)',
+          'JID comunidad': group.linkedParent ? shortJid(group.linkedParent) : '(no aplica)',
+        })));
+      } else {
+        console.log('WhatsApp no devolvió comunidades ni grupos con “Tesla”; esto no depende de que los chats estén archivados o vaciados.');
+      }
       return;
     }
 
@@ -116,15 +143,18 @@ async function main() {
     }> = [];
     const seenCommunities = new Set<string>();
 
-    for (const candidate of candidates) {
+    for (const candidate of candidates.values()) {
       if (seenCommunities.has(candidate.id)) continue;
       seenCommunities.add(candidate.id);
       const result = await wa.fetchLinkedGroups(candidate.id);
       const communityName = chats.get(result.communityJid)?.name ?? candidate.name;
-      if (!result.linkedGroups.length) {
+      const joinedLinkedGroups = result.linkedGroups.filter(
+        (group) => typeof group.id === 'string' && participatingGroupIds.has(group.id),
+      );
+      if (!joinedLinkedGroups.length) {
         report.push({
           Comunidad: communityName,
-          Grupo: '(sin grupos vinculados devueltos por WhatsApp)',
+          Grupo: '(sin grupos vinculados en los que esta cuenta figure como participante)',
           JID: shortJid(candidate.id),
           'Mensajes en historial recibido': 0,
           'Destacados identificables': 'no verificable',
@@ -132,7 +162,7 @@ async function main() {
         continue;
       }
 
-      for (const group of result.linkedGroups) {
+      for (const group of joinedLinkedGroups) {
         const jid = group.id;
         report.push({
           Comunidad: communityName,
@@ -146,6 +176,12 @@ async function main() {
 
     console.log('\nGrupos vinculados detectados:');
     console.table(report);
+    const linkedGroupCount = report.filter(
+      (row) => !row.Grupo.startsWith('(sin grupos vinculados'),
+    ).length;
+    console.log(`Grupos enlazados reportados: ${linkedGroupCount}; grupos participantes consultados: ${participatingGroups.length}.`);
+    console.log('La tabla incluye solo grupos enlazados cuyo JID aparece en la lista de grupos participantes de esta cuenta.');
+    console.log(`Eventos de chats recibidos: ${chatsReceived}.`);
     console.log(`Eventos de historial recibidos: ${historyEvents}. Los conteos son solo del historial observado en esta ejecución.`);
     console.log('No se borró ni persistió ningún mensaje. Este inventario no demuestra cuáles mensajes están destacados.');
   } finally {

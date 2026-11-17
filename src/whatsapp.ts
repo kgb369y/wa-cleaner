@@ -31,6 +31,16 @@ export interface WaClient {
     isCommunity: boolean;
     linkedGroups: { id: string | undefined; subject: string }[];
   }>;
+  fetchParticipatingGroups(): Promise<{
+    id: string;
+    subject: string;
+    linkedParent?: string;
+    isCommunity?: boolean;
+    isCommunityAnnounce?: boolean;
+  }[]>;
+  sendText(jid: string, text: string): Promise<string>;
+  deleteOwnMessage(jid: string, messageId: string): Promise<void>;
+  clearChatPreservingStarred(jid: string, throughTimestamp: number): Promise<void>;
   download(raw: any, maxBytes: number): Promise<Buffer>;
   stop(): Promise<void>;
 }
@@ -55,6 +65,7 @@ export async function startWhatsApp(opts: {
   authDir: string;
   syncFullHistory: boolean;
   logLevel?: string;
+  emitOwnEvents?: boolean;
   handlers: WaHandlers;
 }): Promise<WaClient> {
   const { handlers } = opts;
@@ -103,6 +114,42 @@ export async function startWhatsApp(opts: {
     fetchLinkedGroups: async (jid) => {
       if (!current) throw new Error('WhatsApp no está conectado');
       return current.communityFetchLinkedGroups(jid);
+    },
+    fetchParticipatingGroups: async () => {
+      if (!current) throw new Error('WhatsApp no está conectado');
+      return Object.values(await current.groupFetchAllParticipating());
+    },
+    sendText: async (jid, text) => {
+      if (!current) throw new Error('WhatsApp no está conectado');
+      const sent = await current.sendMessage(jid, { text });
+      if (!sent?.key?.id) throw new Error('WhatsApp no devolvió el ID del mensaje enviado');
+      return sent.key.id;
+    },
+    deleteOwnMessage: async (jid, messageId) => {
+      if (!current) throw new Error('WhatsApp no está conectado');
+      await current.sendMessage(jid, {
+        delete: { remoteJid: jid, id: messageId, fromMe: true },
+      });
+    },
+    clearChatPreservingStarred: async (jid, throughTimestamp) => {
+      if (!current) throw new Error('WhatsApp no está conectado');
+      if (!Number.isSafeInteger(throughTimestamp) || throughTimestamp <= 0) {
+        throw new Error('El límite de tiempo para vaciar el chat no es válido');
+      }
+      await current.appPatch({
+        syncAction: {
+          timestamp: Date.now(),
+          clearChatAction: {
+            messageRange: {
+              lastMessageTimestamp: throughTimestamp,
+            },
+          },
+        },
+        index: ['clearChat', jid, '0', '0'],
+        type: 'regular_high',
+        apiVersion: 6,
+        operation: 0,
+      });
     },
     download: async (raw, maxBytes) => {
       if (!current) throw new Error('WhatsApp no está conectado');
@@ -157,6 +204,7 @@ export async function startWhatsApp(opts: {
       // Navegador "escritorio": necesario para que el teléfono envíe más historial al vincular.
       browser: Browsers.macOS('Chrome'),
       syncFullHistory: opts.syncFullHistory,
+      emitOwnEvents: opts.emitOwnEvents ?? true,
       markOnlineOnConnect: false, // no apareces "en línea" por el bot
       generateHighQualityLinkPreview: false,
       getMessage: async () => undefined,
@@ -182,7 +230,7 @@ export async function startWhatsApp(opts: {
           safe(() =>
             handlers.onFatal?.(
               code,
-              'La sesión fue cerrada (desvinculada desde el teléfono). Borra la carpeta auth/ y vuelve a vincular.',
+              'WhatsApp invalidó o cerró la sesión vinculada (código 401). No borres auth/ automáticamente; revisa Dispositivos vinculados y confirma el estado antes de volver a vincular.',
             ),
           );
           return;
