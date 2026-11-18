@@ -8,3 +8,5 @@ data/
 *.sqlite
 *.sqlite-*
 .vscode/settings.json
+.DS_Store
+pdfstesting/

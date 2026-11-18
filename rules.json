@@ -18,7 +18,11 @@
       "contrato",
       "poliza",
       "cotizacion",
-      "certificado"
+      "certificado",
+      "recibir material",
+      "libros",
+      "epub",
+      "pdf"
     ],
 
     "_documentos": "Reenvía todo documento adjunto cuya extensión esté en esta lista.",

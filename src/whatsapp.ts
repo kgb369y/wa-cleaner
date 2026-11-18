@@ -52,13 +52,29 @@ export interface WaHandlers {
   /** source: 'history' | 'notify' | 'append' */
   onMessages?(msgs: any[], source: string, c: WaClient): void;
   onChats?(chats: any[], source: string): void;
-  onHistoryProgress?(info: { progress?: number | null; isLatest?: boolean; messages: number }): void;
+  onHistoryProgress?(info: {
+    progress?: number | null;
+    isLatest?: boolean;
+    messages: number;
+    requestSessionId?: string;
+  }): void;
   /** Sesión cerrada desde el teléfono, reemplazada, etc.: no se reintenta. */
   onFatal?(code: number, reason: string): void;
 }
 
 export function printQr(qr: string) {
   qrcode.generate(qr, { small: true });
+}
+
+function httpStatusCode(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    output?: { statusCode?: unknown };
+  };
+  const status = candidate.output?.statusCode ?? candidate.statusCode ?? candidate.status;
+  return typeof status === 'number' ? status : undefined;
 }
 
 export async function startWhatsApp(opts: {
@@ -153,30 +169,44 @@ export async function startWhatsApp(opts: {
     },
     download: async (raw, maxBytes) => {
       if (!current) throw new Error('WhatsApp no está conectado');
-      const stream = await downloadMediaMessage(raw, 'stream', {}, {
-        logger,
-        reuploadRequest: current.updateMediaMessage,
-      } as any);
-      const chunks: Buffer[] = [];
-      let size = 0;
-      let exceedsConfiguredLimit = false;
-      for await (const chunk of stream) {
-        size += Buffer.isBuffer(chunk) ? chunk.length : chunk.byteLength;
-        if (size > MAX_MEDIA_BYTES) {
-          stream.destroy();
-          throw new MediaTooLargeError(size, MAX_MEDIA_BYTES);
+      const consumeStream = async (message: any): Promise<Buffer> => {
+        const stream = await downloadMediaMessage(message, 'stream', {}, {
+          logger,
+          reuploadRequest: (failedMessage: any) => current.updateMediaMessage(failedMessage),
+        } as any);
+        const chunks: Buffer[] = [];
+        let size = 0;
+        let exceedsConfiguredLimit = false;
+        for await (const chunk of stream) {
+          size += Buffer.isBuffer(chunk) ? chunk.length : chunk.byteLength;
+          if (size > MAX_MEDIA_BYTES) {
+            stream.destroy();
+            throw new MediaTooLargeError(size, MAX_MEDIA_BYTES);
+          }
+          if (size > maxBytes) {
+            exceedsConfiguredLimit = true;
+            chunks.length = 0;
+            continue;
+          }
+          if (!exceedsConfiguredLimit) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          }
         }
-        if (size > maxBytes) {
-          exceedsConfiguredLimit = true;
-          chunks.length = 0;
-          continue;
-        }
-        if (!exceedsConfiguredLimit) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
+        if (exceedsConfiguredLimit) throw new MediaTooLargeError(size, maxBytes);
+        return Buffer.concat(chunks, size);
+      };
+
+      try {
+        return await consumeStream(raw);
+      } catch (error) {
+        if (error instanceof MediaTooLargeError) throw error;
+        const status = httpStatusCode(error);
+        const message = errMsg(error);
+        const decryptionFailure = /bad decrypt|unsupported state or unable to authenticate data/i.test(message);
+        if (status !== 403 && status !== 404 && status !== 410 && !decryptionFailure) throw error;
+        const refreshed = await current.updateMediaMessage(raw);
+        return consumeStream(refreshed);
       }
-      if (exceedsConfiguredLimit) throw new MediaTooLargeError(size, maxBytes);
-      return Buffer.concat(chunks, size);
     },
     stop: async () => {
       stopped = true;
@@ -259,7 +289,12 @@ export async function startWhatsApp(opts: {
       safe(() => handlers.onChats?.(h.chats ?? [], 'history'));
       const msgs: any[] = h.messages ?? [];
       safe(() => handlers.onMessages?.(msgs, 'history', client));
-      safe(() => handlers.onHistoryProgress?.({ progress: h.progress, isLatest: h.isLatest, messages: msgs.length }));
+      safe(() => handlers.onHistoryProgress?.({
+        progress: h.progress,
+        isLatest: h.isLatest,
+        messages: msgs.length,
+        requestSessionId: h.peerDataRequestSessionId,
+      }));
     });
 
     sock.ev.on('contacts.upsert', (list: any[]) => {

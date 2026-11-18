@@ -9,18 +9,28 @@
   },
   "scripts": {
     "chatid": "NODE_NO_WARNINGS=1 tsx src/chatid.ts",
+    "capture-history": "NODE_NO_WARNINGS=1 tsx src/capture-history.ts",
     "check": "NODE_NO_WARNINGS=1 tsx src/check.ts",
     "community-inventory": "NODE_NO_WARNINGS=1 tsx src/community-inventory.ts",
+    "list-captured-chats": "NODE_NO_WARNINGS=1 tsx src/list-captured-chats.ts",
     "list": "NODE_NO_WARNINGS=1 tsx src/list.ts",
     "start": "NODE_NO_WARNINGS=1 tsx src/index.ts",
     "summary": "NODE_NO_WARNINGS=1 tsx src/summary.ts",
+    "export-chat": "NODE_NO_WARNINGS=1 tsx src/export-chat.ts",
+    "process-captured-chat": "NODE_NO_WARNINGS=1 tsx src/process-captured-chat-cli.ts",
+    "test-download-chat-pdf": "NODE_NO_WARNINGS=1 tsx src/test-download-chat-pdf.ts",
+    "download-chat-attachments": "NODE_NO_WARNINGS=1 tsx src/download-chat-attachments.ts",
+    "test:chat-pdfs": "node --import tsx --test src/chat-attachment-tools.test.ts src/chat-pdfs.test.ts src/chat-export.test.ts src/fresh-chat-pdf.test.ts src/history-capture.test.ts src/matched-chats.test.ts src/package-chat-export.test.ts src/pdf-merge.test.ts src/process-captured-chat.test.ts src/qr-png.test.ts",
     "test-clear-starred": "NODE_NO_WARNINGS=1 tsx src/test-clear-starred.ts",
     "test-delete-whatsapp": "NODE_NO_WARNINGS=1 tsx src/test-delete-whatsapp.ts",
     "test-send-whatsapp": "NODE_NO_WARNINGS=1 tsx src/test-send-whatsapp.ts",
+    "test-send-telegram-pdf": "NODE_NO_WARNINGS=1 tsx src/test-send-telegram-pdf.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "baileys": "7.0.0-rc14",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
     "pino": "10.4.0",
     "qrcode-terminal": "0.12.0"
   },
